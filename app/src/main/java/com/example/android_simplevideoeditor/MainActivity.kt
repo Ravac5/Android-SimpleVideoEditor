@@ -55,7 +55,7 @@ fun thumbnailGrid(photos: List<Int>, modifier: Modifier = Modifier) {
                     modifier = Modifier.aspectRatio(1f),
                     model = "https://i.pinimg.com/236x/87/91/67/87916753a09bcedd0735dcb868fa6ad8.jpg",
                     contentDescription = null,
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Crop
                 )
         }
     }
