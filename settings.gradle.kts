@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SimpleVideoEditor"
+rootProject.name = "Android-SimpleVideoEditor"
 include(":app")
