@@ -53,5 +53,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation("io.coil-kt.coil3:coil-compose:3.6.3") //coil implementation
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3") //coil web searching image implementation
+    implementation("io.coil-kt.coil3:coil-video:3.6.3") //coil video implementation
 }
