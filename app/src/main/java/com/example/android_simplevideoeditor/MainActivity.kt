@@ -1,7 +1,10 @@
 package com.example.android_simplevideoeditor
 
+import android.content.ContentUris
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
@@ -21,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -33,8 +38,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import androidx.navigation.NavType
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import androidx.media3.common.MediaItem as ExoMediaItem
 import coil3.compose.AsyncImage
 import com.example.android_simplevideoeditor.ui.theme.AndroidSimpleVideoEditorTheme
 
@@ -46,7 +60,22 @@ class MainActivity : ComponentActivity() {
         setContent {
             AndroidSimpleVideoEditorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    GalleryScreen(Modifier.padding(innerPadding))
+                    val navController = rememberNavController()
+                    NavHost(
+                        navController = navController,
+                        startDestination = "gallery",
+                        modifier = Modifier.padding(innerPadding)
+
+                    ) {
+                        composable("gallery") {
+                            GalleryScreen(onVideoClick = {video -> navController.navigate("viewer/${video.id}")})
+                        }
+                        composable("viewer/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })){ backStackEntry ->
+                            val id = backStackEntry.arguments?.getLong("id")?: return@composable
+                            val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
+                            VideoPlayer(uri = uri, modifier = Modifier.fillMaxSize())
+                        }
+                    }
                 }
             }
         }
@@ -54,7 +83,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ThumbnailGrid(videoMetadata: List<MediaItem>, modifier: Modifier = Modifier) {
+fun ThumbnailGrid(videoMetadata: List<MediaItem>, modifier: Modifier = Modifier, onVideoClick: (MediaItem) -> Unit) {
     LazyVerticalGrid(
         modifier = modifier,
         columns = GridCells.Fixed(count = 3),
@@ -62,7 +91,7 @@ fun ThumbnailGrid(videoMetadata: List<MediaItem>, modifier: Modifier = Modifier)
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         items(items = videoMetadata, key = {it.id}){
-            Box() {
+            Box(Modifier.clickable{onVideoClick(it)}) {
                 AsyncImage(
                     modifier = Modifier.aspectRatio(1f),
                     model = it.uri,
@@ -76,7 +105,7 @@ fun ThumbnailGrid(videoMetadata: List<MediaItem>, modifier: Modifier = Modifier)
 }
 
 @Composable
-fun GalleryScreen(modifier: Modifier = Modifier) {
+fun GalleryScreen(modifier: Modifier = Modifier, onVideoClick: (MediaItem) -> Unit) {
     val context = LocalContext.current
     var videos by remember { mutableStateOf<List<MediaItem>>(emptyList())}
     val alreadyGranted = requiredMediaPermissions().all { permission ->
@@ -93,7 +122,7 @@ fun GalleryScreen(modifier: Modifier = Modifier) {
                 videos = MediaRepository(context.contentResolver).getVideos()
                 Log.d("Galeria", "Videos: ${videos.size}")
             }
-            ThumbnailGrid(videos, modifier = Modifier.fillMaxSize())
+            ThumbnailGrid(videos, modifier = Modifier.fillMaxSize(), onVideoClick = onVideoClick)
         } else {
             Button(onClick = { launcher.launch(requiredMediaPermissions())}, modifier = Modifier.align(Alignment.Center)) {
                 Text("Dar permisos")
@@ -102,8 +131,20 @@ fun GalleryScreen(modifier: Modifier = Modifier) {
     }
 }
 
+@Composable
+fun VideoPlayer(uri: Uri, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val player = remember { ExoPlayer.Builder(context).build() }
+    LaunchedEffect(uri) {
+        player.setMediaItem(ExoMediaItem.fromUri(uri))
+        player.prepare()
+        player.playWhenReady = true
+    }
+    DisposableEffect(player) { onDispose { player.release() }}
+    AndroidView(modifier = modifier, factory = {PlayerView(it).apply { this.player = player }})
+}
 
-@Preview(showBackground = true)
+/*@Preview(showBackground = true)
 @Composable
 fun Preview() {
     val data1 = MediaItem(1L,"https://i.pinimg.com/736x/56/e2/bc/56e2bc5fe72a1bed36a845cea55cf39f.jpg".toUri(),"idk",1000,1000,1000,)
@@ -111,6 +152,6 @@ fun Preview() {
     val data3 = MediaItem(id = 3L, uri = "https://i.pinimg.com/736x/54/95/69/5495699563b61bad56f5f1d2eaa26c6e.jpg".toUri(), name = "idk3", duration = 1000, size = 1000, dateAdded = 1000)
     val videoMetadata: List<MediaItem> = listOf<MediaItem>(data1,data2,data3)
     AndroidSimpleVideoEditorTheme {
-        ThumbnailGrid(videoMetadata)
+        ThumbnailGrid(videoMetadata
     }
-}
+}*/
